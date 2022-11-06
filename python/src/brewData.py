@@ -6,6 +6,7 @@ import requests
 from pandas.io import gbq
 import datetime
 from dateutil import parser
+import generateBeverages as genBev
 
 class BreweryLoader():
 
@@ -63,13 +64,23 @@ class BreweryLoader():
         self.breweries.created_at = self.breweries.created_at.apply(parser.parse)
         self.breweries[strCols] = self.breweries[strCols].replace('None','')
 
-    def loadBreweries(self,table_id):
+    def getBeverages(self):
+        genBev.assignBeverages(self.breweries)
+        self.beverages = genBev.makeBeveragesDataFrame()
+
+
+    def loadData(self,table_id):
         #Prepare to load data into the staging table
         #table_id = "brewery-data-367214.brewData.staging_breweries"
         job_config = bigquery.LoadJobConfig(source_format = 'CSV')
+        
+        if table_id.split('.')[2] == 'staging_breweries':
+            df = self.breweries
+        elif table_id.split('.')[2] == 'staging_beverages':
+            df = self.beverages
 
         job = self.client.load_table_from_dataframe(
-            self.breweries, table_id, job_config=job_config,
+            df, table_id, job_config=job_config,
         )
         job.result()  # Wait for the job to complete.
 
@@ -86,7 +97,12 @@ def main():
     myBreweryLoader.getBreweries(urlBase = 'https://api.openbrewerydb.org/breweries?by_state=wisconsin')
     myBreweryLoader.cleanBreweriesDataTypes()
     myBreweryLoader.prepStagingTable(tableDefSql = './python/src/staging_breweries.sql')
-    myBreweryLoader.loadBreweries(table_id = 'brewery-data-367214.brewData.staging_breweries')
+    myBreweryLoader.loadData(table_id = 'brewery-data-367214.brewData.staging_breweries')
+
+    myBreweryLoader.getBeverages()
+    myBreweryLoader.prepStagingTable(tableDefSql = './python/src/staging_beverages.sql')
+    myBreweryLoader.loadData(table_id = 'brewery-data-367214.brewData.staging_beverages')
+
 
 if __name__ == '__main__':
     main()
