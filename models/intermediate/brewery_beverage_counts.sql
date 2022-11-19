@@ -5,10 +5,10 @@ with beverages as (
     from {{ ref('beverages_incremental') }}
 )
 
-select stg_beverages.brewery_id,
-    count(beverages.id) num_Beverages,
+select brewery_id,
+    count(id) num_beverages,
     {%for beverage_type in beverage_types %}
-    count(case when beverages.beverage_type = '{{beverage_type}}' then beverages.id else null end) num_{{beverage_type}}s
+    count(case when beverage_type = '{{beverage_type}}' then id else null end) num_{{ dbt_utils.slugify(beverage_type) }}s,
     {% endfor %}
 from beverages
-group by stg_beverages.brewery_id
+group by brewery_id
