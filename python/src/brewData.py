@@ -9,8 +9,10 @@ from dateutil import parser
 import generateBeverages as genBev
 
 class BreweryLoader():
-
+    #This class defines the client to connect to BigQuery, prepares staging tables, sends an HTTP request to Open Brewery DB, assigns beverages, and loads data to BigQuery.
     def __init__(self) -> None:
+
+        #Should implement an environment variable for the path
         self.key_path = './brewery-data-local-machine-key.json'
         self.credentials = service_account.Credentials.from_service_account_file(
             self.key_path, scopes=['https://www.googleapis.com/auth/cloud-platform'],
@@ -20,6 +22,7 @@ class BreweryLoader():
         self.breweries = pd.DataFrame()
     
     def prepStagingTable(self,tableDefSql):
+        #Given a table definition script, prepare a staging table
         with open (tableDefSql,'r') as create_table_file:
             create_table = create_table_file.read()
         create_table_file.close()
@@ -40,6 +43,7 @@ class BreweryLoader():
             data = r.json()
     
     def cleanBreweriesDataTypes(self):
+        #Ensure the expected data types are assigned for breweries
         colTypes = {'id': str,
                     'name': str,
                     'brewery_type': str,
@@ -60,20 +64,25 @@ class BreweryLoader():
         strCols = [col for col in colTypes if colTypes[col] == str]
 
         self.breweries = self.breweries.astype(colTypes)
+
+        #Convert to datetimes
         self.breweries.updated_at = self.breweries.updated_at.apply(parser.parse)
         self.breweries.created_at = self.breweries.created_at.apply(parser.parse)
+
+        #Replace None with empty string to get NULL values in BigQuery staging table
         self.breweries[strCols] = self.breweries[strCols].replace('None','')
 
     def getBeverages(self):
+        #Call into beverage generator to assign random beverages to breweries that will be loaded in this run
         genBev.assignBeverages(self.breweries)
         self.beverages = genBev.makeBeveragesDataFrame()
 
 
     def loadData(self,table_id):
-        #Prepare to load data into the staging table
-        #table_id = "brewery-data-367214.brewData.staging_breweries"
+        #Load data into the specified staging table
         job_config = bigquery.LoadJobConfig(source_format = 'CSV')
         
+        #Infer the correct dataframe to use for loading the table
         if table_id.split('.')[2] == 'staging_breweries':
             df = self.breweries
         elif table_id.split('.')[2] == 'staging_beverages':
@@ -93,12 +102,14 @@ class BreweryLoader():
         )
 
 def main():
+    #First work through breweries
     myBreweryLoader = BreweryLoader()
     myBreweryLoader.getBreweries(urlBase = 'https://api.openbrewerydb.org/breweries?by_state=wisconsin')
     myBreweryLoader.cleanBreweriesDataTypes()
     myBreweryLoader.prepStagingTable(tableDefSql = './python/src/staging_breweries.sql')
     myBreweryLoader.loadData(table_id = 'brewery-data-367214.brewData.staging_breweries')
 
+    #Then handle beverages
     myBreweryLoader.getBeverages()
     myBreweryLoader.prepStagingTable(tableDefSql = './python/src/staging_beverages.sql')
     myBreweryLoader.loadData(table_id = 'brewery-data-367214.brewData.staging_beverages')
