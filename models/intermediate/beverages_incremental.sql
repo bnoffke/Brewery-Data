@@ -12,6 +12,9 @@ with beverages as (
     from {{ ref('stg_beverages') }}
 )
 
+select *
+from beverages
+
 {% if is_incremental() %}
     where beverages.updated_at > ifnull(
             (

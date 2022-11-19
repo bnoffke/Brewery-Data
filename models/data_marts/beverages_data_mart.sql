@@ -10,4 +10,4 @@ with beverages as (
 )
 
 select *
-from beverages_incremental
+from beverages
