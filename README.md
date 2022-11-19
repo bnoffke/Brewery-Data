@@ -1,5 +1,5 @@
 # Brewery-Data
-This is a project to practice Python/dbt/GCP with Open Brewery DB data and some fabricated data.
+This is a project to practice Python/dbt/GCP with [Open Brewery DB](https://www.openbrewerydb.org/) data and some fabricated data.
 
 ## What does this code do?
 The Python scripts will pull from the Open Brewery DB API and load the breweries into a BigQuery staging table. Then, random beverages are generated for the breweries that have been staged and loaded into their own staging table.
